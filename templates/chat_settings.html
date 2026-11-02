@@ -1,0 +1,470 @@
+<div class="container-fluid py-4">
+    <!-- Header avec navigation retour -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="/admin/melodi_chat" class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" title="Retour à Melodi Chat">
+                <i class="bi bi-arrow-left">&larr;</i>
+            </a>
+            <div>
+                <h4 class="fw-bold mb-0 text-dark">Melodi Chat &bull; Configuration Serveur</h4>
+                <div class="text-muted small">Microservice dédié <code>melodi_chat_server</code> (Port 7070, BDD Dédiée & Scalabilité)</div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/admin/melodi_chat" class="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2" style="background-color: #4f46e5; border-color: #4f46e5;">
+                <span>Ouvrir Melodi Chat</span>
+                <span class="badge bg-white text-primary rounded-pill">&rarr;</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Alertes et résultats de tests -->
+    <div id="settingsAlert" class="alert d-none rounded-3 mb-4" role="alert"></div>
+
+    <div class="row g-4">
+        <!-- Colonne Gauche : État et Télémétrie en direct -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0">État du Service Dédié</h6>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-0.5" id="refreshHealthBtn" onclick="testConnection()">
+                        <span id="refreshSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                        Rafraîchir
+                    </button>
+                </div>
+                <div class="card-body px-4">
+                    <div class="p-3 rounded-3 mb-3 {% if is_healthy %}bg-success-subtle border border-success-subtle{% else %}bg-danger-subtle border border-danger-subtle{% endif %}" id="statusBox">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="rounded-circle p-1.5 {% if is_healthy %}bg-success text-white{% else %}bg-danger text-white{% endif %}" id="statusIndicator">
+                                <span class="spinner-grow spinner-grow-sm" style="width: 8px; height: 8px;"></span>
+                            </span>
+                            <div>
+                                <span class="fw-bold fs-6" id="statusTitle">
+                                    {% if is_healthy %}Serveur Opérationnel (Port {{ health_info.port or 7070 }}){% else %}Serveur Inaccessible{% endif %}
+                                </span>
+                                <div class="text-muted small" id="statusSubtitle">
+                                    {% if is_healthy %}Microservice <code>melodi_chat_server</code> connecté et réactif.{% else %}Impossible de joindre le serveur de chat sur le port 7070.{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="list-group list-group-flush small">
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Port d'écoute</span>
+                            <span class="badge bg-light text-dark border font-monospace" id="statPort">{{ health_info.port or 7070 }}</span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Mode de Scaling</span>
+                            <span class="badge {% if health_info.scale_mode == 'scalable' %}bg-primary{% else %}bg-secondary{% endif %}" id="statScaleMode">
+                                {{ health_info.scale_mode|capitalize if health_info.scale_mode else settings.scale_mode|capitalize }}
+                            </span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Base de Données Dédiée</span>
+                            <span class="badge {% if health_info.db_status == 'connected' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}" id="statDb">
+                                {% if health_info.db_type %}{{ health_info.db_type }} &bull; {% endif %}{{ health_info.db_status or 'Non connectée' }}
+                            </span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Emplacement BDD</span>
+                            <span class="badge bg-light text-muted border font-monospace text-truncate" style="max-width: 170px;" id="statDbUrl" title="{{ health_info.db_url_masked or '' }}">
+                                {{ health_info.db_url_masked or '-' }}
+                            </span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Statut Redis (Cluster)</span>
+                            <span class="badge {% if health_info.redis_status == 'connected' %}bg-success{% elif health_info.redis_status == 'disabled' %}bg-light text-muted border{% else %}bg-danger{% endif %}" id="statRedis">
+                                {{ health_info.redis_status or 'Désactivé' }}
+                            </span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Conversations</span>
+                            <span class="fw-bold text-dark" id="statConvs">{{ health_info.stats.total_conversations if health_info.stats else '-' }}</span>
+                        </div>
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Messages Stockés</span>
+                            <span class="fw-bold text-dark" id="statMsgs">{{ health_info.stats.total_messages if health_info.stats else '-' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-2 border-top d-flex flex-column gap-2">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1 rounded-pill" onclick="testConnection()">
+                                Tester Serveur
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm flex-grow-1 rounded-pill" onclick="testRedis()">
+                                Tester Redis
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="testDatabase()">
+                            <span id="testDbSpinnerTelemetry" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                            Tester Base de Données
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne Droite : Formulaire de Paramétrage et Scalabilité -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                    <h6 class="fw-bold text-dark mb-0">Paramètres de Connexion & BDD Dédiée</h6>
+                    <div class="text-muted small">Configurez l'adresse d'API, la base de données isolée et l'orchestration multi-instances.</div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <form id="chatSettingsForm" onsubmit="saveSettings(event)">
+                        <!-- URL du Serveur -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-muted">URL de l'API melodi_chat_server</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0">HTTP</span>
+                                <input type="text" class="form-control" name="server_url" id="server_url" 
+                                       value="{{ settings.server_url }}" placeholder="http://127.0.0.1:7070" required>
+                            </div>
+                            <div class="form-text small">Port par défaut recommandé : <strong>7070</strong>.</div>
+                        </div>
+
+                        <!-- Clé Secrète Interne -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-muted">Clé Secrète Partagée (Authentification Interne)</label>
+                            <input type="password" class="form-control font-monospace" name="secret" id="secret" 
+                                    value="{{ settings.secret }}" placeholder="melodi_chat_secret_789" required>
+                            <div class="form-text small">Transmise dans le header <code>X-Melodi-Secret</code> pour sécuriser les échanges.</div>
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25">
+
+                        <!-- Base de Données Dédiée du Chat -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0">Base de Données du Chat</h6>
+                                <div class="text-muted small">Stockage isolé des conversations et messages (sans alourdir l'ERP).</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="testDatabase()">
+                                <span id="testDbSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                                Tester BDD
+                            </button>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="card p-3 border rounded-3 h-100 cursor-pointer db-type-card" id="cardSqlite">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <input class="form-check-input mt-1" type="radio" name="db_type" value="sqlite" 
+                                               {% if settings.db_type == 'sqlite' or not settings.db_type %}checked{% endif %} onchange="toggleDbType()">
+                                        <div>
+                                            <div class="fw-bold small">SQLite (Fichier Local)</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">
+                                                Autonome, zéro configuration requise. Fichier <code>.db</code> local au microservice.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="card p-3 border rounded-3 h-100 cursor-pointer db-type-card" id="cardPostgres">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <input class="form-check-input mt-1" type="radio" name="db_type" value="postgresql" 
+                                               {% if settings.db_type == 'postgresql' %}checked{% endif %} onchange="toggleDbType()">
+                                        <div>
+                                            <div class="fw-bold small text-primary">PostgreSQL (Production / Scalable)</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">
+                                                Haute concurrence via <code>asyncpg</code>. Idéal avec multi-instances.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Paramètres SQLite -->
+                        <div id="sqliteConfigBlock" class="p-3 bg-light rounded-3 mb-3 border {% if settings.db_type == 'postgresql' %}d-none{% endif %}">
+                            <div class="fw-semibold small text-dark mb-2">Paramètres SQLite</div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="form-label small text-muted mb-1">Nom / Chemin du fichier</label>
+                                    <input type="text" class="form-control form-control-sm font-monospace" name="db_name_sqlite" id="db_name_sqlite" 
+                                           value="{{ settings.db_name if settings.db_type == 'sqlite' else 'chat.db' }}" placeholder="chat.db">
+                                    <div class="form-text" style="font-size: 0.72rem;">Nom relatif (ex: <code>chat.db</code>) ou chemin absolu sur le serveur.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Paramètres PostgreSQL -->
+                        <div id="postgresConfigBlock" class="p-3 bg-light rounded-3 mb-3 border {% if settings.db_type != 'postgresql' %}d-none{% endif %}">
+                            <div class="fw-semibold small text-dark mb-2">Paramètres de connexion PostgreSQL</div>
+                            <div class="row g-2">
+                                <div class="col-md-7">
+                                    <label class="form-label small text-muted mb-1">Hôte PostgreSQL</label>
+                                    <input type="text" class="form-control form-control-sm" name="db_host" id="db_host" 
+                                           value="{{ settings.db_host or '127.0.0.1' }}" placeholder="127.0.0.1">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small text-muted mb-1">Port</label>
+                                    <input type="number" class="form-control form-control-sm" name="db_port" id="db_port" 
+                                           value="{{ settings.db_port or 5450 }}" placeholder="5450">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Nom de la base</label>
+                                    <input type="text" class="form-control form-control-sm font-monospace" name="db_name_pg" id="db_name_pg" 
+                                           value="{{ settings.db_name if settings.db_type == 'postgresql' else 'melodi' }}" placeholder="melodi">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Utilisateur</label>
+                                    <input type="text" class="form-control form-control-sm" name="db_user" id="db_user" 
+                                           value="{{ settings.db_user or 'melodi' }}" placeholder="melodi">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Mot de passe</label>
+                                    <input type="password" class="form-control form-control-sm" name="db_password" id="db_password" 
+                                           value="{{ settings.db_password or '' }}" placeholder="root">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25">
+
+                        <!-- Architecture et Scalabilité Horizontale -->
+                        <h6 class="fw-bold text-dark mb-3">Architecture & Mode de Scaling</h6>
+                        
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="card p-3 border rounded-3 h-100 cursor-pointer scale-card" id="cardAutonome">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <input class="form-check-input mt-1" type="radio" name="scale_mode" value="autonome" 
+                                               {% if settings.scale_mode == 'autonome' %}checked{% endif %} onchange="toggleScaleMode()">
+                                        <div>
+                                            <div class="fw-bold small">Mode Autonome</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">
+                                                Idéal pour serveur unique / développement. Pas de dépendance Redis obligatoire.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="card p-3 border rounded-3 h-100 cursor-pointer scale-card" id="cardScalable">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <input class="form-check-input mt-1" type="radio" name="scale_mode" value="scalable" 
+                                               {% if settings.scale_mode == 'scalable' %}checked{% endif %} onchange="toggleScaleMode()">
+                                        <div>
+                                            <div class="fw-bold small text-primary">Mode Scalable (Distribué)</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">
+                                                Multi-instances équilibrées avec Redis. Refuse de démarrer si Redis est injoignable.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Paramètres Redis (affichés si scalable) -->
+                        <div id="redisConfigBlock" class="p-3 bg-light rounded-3 mb-4 border">
+                            <div class="fw-semibold small text-dark mb-2">Paramètres de synchronisation Redis</div>
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <label class="form-label small text-muted mb-1">Hôte Redis</label>
+                                    <input type="text" class="form-control form-control-sm" name="redis_host" id="redis_host" 
+                                           value="{{ settings.redis_host }}" placeholder="localhost">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">Port Redis</label>
+                                    <input type="number" class="form-control form-control-sm" name="redis_port" id="redis_port" 
+                                           value="{{ settings.redis_port }}" placeholder="6379">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Mot de passe</label>
+                                    <input type="password" class="form-control form-control-sm" name="redis_password" id="redis_password" 
+                                           value="{{ settings.redis_password or '' }}" placeholder="Optionnel">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-xs" id="saveBtn">
+                                Enregistrer la Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAlert(message, type = 'success') {
+    const el = document.getElementById('settingsAlert');
+    el.className = `alert alert-${type} rounded-3 mb-4 shadow-sm`;
+    el.textContent = message;
+    el.classList.remove('d-none');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleScaleMode() {
+    const isScalable = document.querySelector('input[name="scale_mode"]:checked').value === 'scalable';
+    const redisBlock = document.getElementById('redisConfigBlock');
+    if (isScalable) {
+        redisBlock.classList.remove('opacity-50');
+    } else {
+        redisBlock.classList.add('opacity-50');
+    }
+}
+
+function toggleDbType() {
+    const dbType = document.querySelector('input[name="db_type"]:checked').value;
+    const sqliteBlock = document.getElementById('sqliteConfigBlock');
+    const pgBlock = document.getElementById('postgresConfigBlock');
+    if (dbType === 'sqlite') {
+        sqliteBlock.classList.remove('d-none');
+        pgBlock.classList.add('d-none');
+    } else {
+        sqliteBlock.classList.add('d-none');
+        pgBlock.classList.remove('d-none');
+    }
+}
+
+function getDbFormData() {
+    const dbType = document.querySelector('input[name="db_type"]:checked').value;
+    const dbName = dbType === 'sqlite' 
+        ? document.getElementById('db_name_sqlite').value.trim() 
+        : document.getElementById('db_name_pg').value.trim();
+
+    return {
+        db_type: dbType,
+        db_name: dbName,
+        db_host: document.getElementById('db_host').value.trim(),
+        db_port: parseInt(document.getElementById('db_port').value) || 5450,
+        db_user: document.getElementById('db_user').value.trim(),
+        db_password: document.getElementById('db_password').value
+    };
+}
+
+async function testDatabase() {
+    const spinner1 = document.getElementById('testDbSpinner');
+    const spinner2 = document.getElementById('testDbSpinnerTelemetry');
+    if (spinner1) spinner1.classList.remove('d-none');
+    if (spinner2) spinner2.classList.remove('d-none');
+
+    const dbData = getDbFormData();
+
+    try {
+        const res = await fetch('/admin/melodi_chat/settings/test-db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dbData)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showAlert(`Succès : ${data.message} (${data.db_url_masked})`, 'success');
+        } else {
+            showAlert(`Échec test BDD : ${data.message || 'Impossible de se connecter'}`, 'danger');
+        }
+    } catch (err) {
+        showAlert('Erreur lors du test BDD : ' + err.message, 'danger');
+    } finally {
+        if (spinner1) spinner1.classList.add('d-none');
+        if (spinner2) spinner2.classList.add('d-none');
+    }
+}
+
+async function saveSettings(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Enregistrement...';
+
+    const dbData = getDbFormData();
+    const payload = {
+        server_url: document.getElementById('server_url').value,
+        secret: document.getElementById('secret').value,
+        scale_mode: document.querySelector('input[name="scale_mode"]:checked').value,
+        redis_host: document.getElementById('redis_host').value,
+        redis_port: parseInt(document.getElementById('redis_port').value) || 6379,
+        redis_password: document.getElementById('redis_password').value,
+        ...dbData
+    };
+
+    try {
+        const res = await fetch('/admin/melodi_chat/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success' || data.status === 'warning') {
+            showAlert(data.message, data.status === 'success' ? 'success' : 'warning');
+            await testConnection();
+        } else {
+            showAlert(data.message || 'Erreur lors de la sauvegarde.', 'danger');
+        }
+    } catch (err) {
+        showAlert('Erreur réseau lors de la sauvegarde: ' + err.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer la Configuration';
+    }
+}
+
+async function testConnection() {
+    const spinner = document.getElementById('refreshSpinner');
+    if (spinner) spinner.classList.remove('d-none');
+
+    try {
+        const res = await fetch('/admin/melodi_chat/settings/test-connection', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const h = data.data;
+            showAlert(`Succès : Serveur de chat connecté sur le port ${h.port} (mode: ${h.scale_mode}).`, 'success');
+            
+            // Mise à jour de l'UI
+            document.getElementById('statPort').textContent = h.port;
+            document.getElementById('statScaleMode').textContent = h.scale_mode.toUpperCase();
+            document.getElementById('statDb').textContent = (h.db_type ? h.db_type + ' • ' : '') + h.db_status;
+            if (document.getElementById('statDbUrl')) {
+                document.getElementById('statDbUrl').textContent = h.db_url_masked || '-';
+                document.getElementById('statDbUrl').title = h.db_url_masked || '';
+            }
+            document.getElementById('statRedis').textContent = h.redis_status;
+            if (h.stats) {
+                document.getElementById('statConvs').textContent = h.stats.total_conversations;
+                document.getElementById('statMsgs').textContent = h.stats.total_messages;
+            }
+            const box = document.getElementById('statusBox');
+            box.className = 'p-3 rounded-3 mb-3 bg-success-subtle border border-success-subtle';
+            document.getElementById('statusTitle').textContent = `Serveur Opérationnel (Port ${h.port})`;
+            document.getElementById('statusSubtitle').textContent = 'Microservice melodi_chat_server connecté et réactif.';
+        } else {
+            showAlert('Échec de connexion : ' + (data.message || 'Serveur injoignable'), 'danger');
+            const box = document.getElementById('statusBox');
+            box.className = 'p-3 rounded-3 mb-3 bg-danger-subtle border border-danger-subtle';
+            document.getElementById('statusTitle').textContent = 'Serveur Inaccessible';
+            document.getElementById('statusSubtitle').textContent = data.message || 'Vérifiez que le serveur écoute sur le port 7070.';
+        }
+    } catch (err) {
+        showAlert('Erreur lors du test de connexion: ' + err.message, 'danger');
+    } finally {
+        if (spinner) spinner.classList.add('d-none');
+    }
+}
+
+async function testRedis() {
+    try {
+        const res = await fetch('/admin/melodi_chat/settings/test-redis', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showAlert('Test Redis réussi : ' + data.message, 'success');
+        } else {
+            showAlert('Erreur Redis : ' + data.message, 'warning');
+        }
+    } catch (err) {
+        showAlert('Erreur lors du test Redis: ' + err.message, 'danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    toggleScaleMode();
+});
+</script>

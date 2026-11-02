@@ -1,0 +1,11 @@
+{
+  "name": "melodi_chat",
+  "title": "Melodi Chat",
+  "version": "1.0.0",
+  "description": "Plateforme collaborative et messagerie instantanée d'entreprise haute performance pour MELODI ERP.",
+  "author": "BYT3LAB",
+  "icon": "name=forum&fill=%236366f1",
+  "depends": [
+    "base"
+  ]
+}

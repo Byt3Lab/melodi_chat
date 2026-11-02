@@ -1,0 +1,1072 @@
+<div class="melodi-chat-container card border-0 shadow-sm rounded-4 overflow-hidden mb-4" 
+     style="height: calc(100vh - 130px); min-height: 540px; max-height: calc(100vh - 130px); display: flex; flex-direction: column; background: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <div class="row g-0 flex-grow-1" style="min-height: 0; height: 100%; overflow: hidden;">
+        
+        <!-- ── COLONNE GAUCHE : WORKSPACE & DISCUSSIONS ── -->
+        <div class="col-md-4 col-xl-3 border-end d-flex flex-column h-100 bg-white" style="min-height: 0; max-height: 100%; overflow: hidden; border-color: #e2e8f0 !important;">
+            
+            <!-- Header Melodi Chat (flex-shrink: 0) -->
+            <div class="p-3 border-bottom flex-shrink-0" style="background: #ffffff; border-color: #f1f5f9 !important;">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center shadow-xs" 
+                             style="width: 36px; height: 36px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff;">
+                            <img src="/static_base_icons?name=forum&fill=white" style="width: 20px; height: 20px;">
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-1.5">
+                                <span class="fw-bold text-dark fs-6" style="letter-spacing: -0.3px;">Melodi Chat</span>
+                            </div>
+                            <div class="text-muted small" style="font-size: 0.72rem;">Messagerie instantanée</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <a href="/admin/melodi_chat/settings" class="btn btn-sm btn-light border rounded-circle d-flex align-items-center justify-content-center p-1 text-muted" 
+                           title="Configuration" style="width: 30px; height: 30px;">
+                            <img src="/static_base_icons?name=settings&fill=%2364748b" style="width: 14px; height: 14px;">
+                        </a>
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-2.5 py-1 d-flex align-items-center gap-1 shadow-xs" 
+                                id="newChatBtn" title="Nouvelle discussion ou salon" data-bs-toggle="modal" data-bs-target="#newChatModal" 
+                                style="background-color: #4f46e5; border-color: #4f46e5; font-size: 0.75rem;">
+                            <img src="/static_base_icons?name=add&fill=white" style="width: 13px; height: 13px;">
+                            <span>Nouveau</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Carte profil utilisateur connecté -->
+                <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between" style="border-color: #f1f5f9 !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="position-relative">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs" 
+                                 style="width: 32px; height: 32px; background: #6366f1; font-size: 0.8rem;">
+                                {{ current_user_name[0]|upper if current_user_name else 'U' }}
+                            </div>
+                            <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle" title="En ligne"></span>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="fw-semibold text-dark text-truncate small" style="font-size: 0.82rem;">{{ current_user_name }}</div>
+                            <div class="text-muted text-truncate" style="font-size: 0.68rem;">Session synchronisée</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.65rem;">
+                        ● En ligne
+                    </span>
+                </div>
+            </div>
+
+            <!-- Barre de recherche & Filtres (flex-shrink: 0) -->
+            <div class="p-2.5 border-bottom flex-shrink-0 bg-white" style="border-color: #f1f5f9 !important;">
+                <div class="input-group input-group-sm rounded-3 bg-light border px-2 py-1 mb-2">
+                    <span class="input-group-text bg-transparent border-0 p-0 me-2 text-muted">
+                        <img src="/static_base_icons?name=search&fill=%2394a3b8" style="width: 15px; height: 15px;">
+                    </span>
+                    <input type="text" id="chatSearchInput" class="form-control bg-transparent border-0 p-0 small" 
+                           placeholder="Rechercher un salon ou contact..." style="box-shadow: none; font-size: 0.82rem;">
+                </div>
+
+                <div class="d-flex gap-1 overflow-x-auto">
+                    <button type="button" class="btn btn-sm btn-dark rounded-pill px-2.5 py-0.5 filter-btn active" data-filter="all" style="font-size: 0.72rem;">Tous</button>
+                    <button type="button" class="btn btn-sm btn-light rounded-pill px-2.5 py-0.5 filter-btn border text-muted" data-filter="channel" style="font-size: 0.72rem;"># Salons</button>
+                    <button type="button" class="btn btn-sm btn-light rounded-pill px-2.5 py-0.5 filter-btn border text-muted" data-filter="direct" style="font-size: 0.72rem;">@ Directs</button>
+                </div>
+            </div>
+
+            <!-- Liste des discussions (flex-grow: 1; overflow-y: auto;) -->
+            <div class="conversation-list flex-grow-1" id="conversationList" style="flex: 1 1 0; min-height: 0; overflow-y: auto;">
+                {% for conv in conversations %}
+                <div class="conversation-item p-3 border-bottom d-flex align-items-center gap-3 cursor-pointer {% if selected_conv and selected_conv.id == conv.id %}active-conv{% endif %}"
+                     data-id="{{ conv.id }}"
+                     data-code="{{ conv.code }}"
+                     data-type="{{ conv.type }}"
+                     data-title="{{ conv.title }}"
+                     style="transition: all 0.15s ease; border-color: #f8fafc !important;">
+                    
+                    <div class="position-relative">
+                        {% if conv.type == 'channel' %}
+                        <div class="rounded-3 d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                             style="width: 42px; height: 42px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; font-size: 1.1rem;">
+                            #
+                        </div>
+                        {% else %}
+                        <div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                             style="width: 42px; height: 42px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); font-size: 0.95rem;">
+                            {{ conv.title[0]|upper }}
+                        </div>
+                        <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle conv-status-dot" title="En ligne"></span>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between mb-0.5">
+                            <span class="fw-semibold text-dark text-truncate conv-title" style="font-size: 0.88rem;">{{ conv.title }}</span>
+                            <span class="text-muted conv-time" style="font-size: 0.7rem;">{{ conv.last_message_time or '' }}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted text-truncate conv-preview small" style="font-size: 0.78rem; max-width: 85%;">
+                                <span class="preview-text">{{ conv.last_message_text or 'Aucun message pour le moment' }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        <!-- ── COLONNE DROITE : FIL DE DISCUSSION CENTRAL ── -->
+        <div class="col-md-8 col-xl-9 d-flex flex-column h-100 position-relative" 
+             style="min-height: 0; max-height: 100%; overflow: hidden; background: #f8fafc;">
+            
+            <!-- Header du Salon / Contact (flex-shrink: 0) -->
+            <div class="p-3 px-4 d-flex align-items-center justify-content-between border-bottom bg-white shadow-xs flex-shrink-0" 
+                 style="height: 65px; border-color: #e2e8f0 !important; z-index: 10;">
+                <div class="d-flex align-items-center gap-3">
+                    <div id="activeChatAvatar">
+                        {% if selected_conv and selected_conv.type == 'channel' %}
+                        <div class="rounded-3 d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                             style="width: 38px; height: 38px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; font-size: 1.1rem;">
+                            #
+                        </div>
+                        {% else %}
+                        <div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                             style="width: 38px; height: 38px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
+                            {{ (selected_conv.title[0]|upper) if selected_conv else 'C' }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="activeChatTitle">
+                            {{ selected_conv.title if selected_conv else 'Sélectionnez une discussion' }}
+                        </h6>
+                        <div class="text-muted small d-flex align-items-center gap-1.5" id="activeChatStatus" style="font-size: 0.73rem;">
+                            <span class="badge bg-success p-1 rounded-circle" style="width: 6px; height: 6px;"></span>
+                            <span id="activeChatStatusText">En direct</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a href="/admin/melodi_chat/settings" class="btn btn-outline-secondary btn-sm rounded-pill px-2.5 py-1 d-flex align-items-center gap-1 shadow-xs" 
+                       title="Configuration" style="font-size: 0.75rem;">
+                        <img src="/static_base_icons?name=settings&fill=%2364748b" style="width: 14px; height: 14px;">
+                        <span>Configuration</span>
+                    </a>
+
+                    <div class="dropdown">
+                        <button class="btn btn-icon btn-sm btn-light border rounded-circle text-muted p-1.5" type="button" 
+                                id="activeChatMoreBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Options de la discussion">
+                            <img src="/static_base_icons?name=more_vert&fill=%2364748b" style="width: 16px; height: 16px;">
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2" aria-labelledby="activeChatMoreBtn" style="font-size: 0.85rem;">
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center gap-2 text-danger" type="button" id="deleteConversationBtn">
+                                    <img src="/static_base_icons?name=delete&fill=%23dc3545" style="width: 16px; height: 16px;">
+                                    <span>Supprimer cette discussion</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fil des Messages (flex-grow: 1; overflow-y: auto;) -->
+            <div class="p-4 chat-messages-stream" id="chatMessagesStream"
+                 style="flex: 1 1 0; min-height: 0; overflow-y: auto; background-color: #f8fafc;">
+                
+                <!-- Bannière d'accueil sécurisée -->
+                <div class="text-center my-2">
+                    <span class="badge bg-white text-muted shadow-xs px-3 py-1.5 rounded-pill border" style="font-size: 0.72rem; border-color: #e2e8f0 !important;">
+                        <img src="/static_base_icons?name=lock&fill=%236366f1" style="width: 12px; height: 12px;" class="me-1">
+                        Échanges synchronisés en direct
+                    </span>
+                </div>
+
+                <!-- Messages container -->
+                <div id="messagesContainer" class="d-flex flex-column gap-3">
+                    {% for msg in initial_messages %}
+                    {% set is_me = (msg.sender_name == current_user_name or msg.sender_id == current_user_id) %}
+                    <div class="d-flex {{ 'justify-content-end' if is_me else 'justify-content-start' }} message-row" data-id="{{ msg.id }}">
+                        
+                        <!-- Bulle de message Melodi Chat -->
+                        <div class="message-bubble p-3 rounded-4 shadow-xs position-relative" 
+                             style="max-width: 72%; {% if is_me %}background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff; border-bottom-right-radius: 4px !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);{% else %}background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px !important;{% endif %}">
+                            
+                            <!-- Bouton supprimer au survol -->
+                            <button type="button" class="btn btn-sm text-danger p-0 border-0 msg-delete-btn" 
+                                    title="Supprimer ce message" data-msg-id="{{ msg.id }}">
+                                <img src="/static_base_icons?name=delete&fill=%23ef4444" style="width: 13px; height: 13px;">
+                            </button>
+
+                            {% if not is_me %}
+                            <div class="fw-bold mb-1 d-flex align-items-center gap-1.5" style="font-size: 0.78rem; color: #4f46e5;">
+                                <span>{{ msg.sender_name }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="message-text" style="font-size: 0.9rem; line-height: 1.5; word-break: break-word; padding-right: 14px;">
+                                {{ msg.message }}
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-end gap-1 mt-1.5 {% if is_me %}text-white-50{% else %}text-muted{% endif %}" style="font-size: 0.68rem;">
+                                <span>{{ msg.time_formatted or '' }}</span>
+                                <span class="check-mark">
+                                    {% if is_me %}
+                                    <span style="color: #93c5fd; font-weight: bold;">✓✓</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Indicateur de saisie en direct -->
+                <div id="typingIndicator" class="d-none mt-2">
+                    <div class="badge bg-white text-muted border shadow-xs px-3 py-1.5 rounded-pill d-inline-flex align-items-center gap-2" style="font-size: 0.75rem; border-color: #e2e8f0 !important;">
+                        <span class="spinner-grow spinner-grow-sm text-primary" style="width: 8px; height: 8px;" role="status"></span>
+                        <span id="typingText" class="text-dark fw-medium">Un collaborateur rédige un message...</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Composer : Barre de saisie flottante moderne (flex-shrink: 0) -->
+            <div class="p-3 bg-white border-top flex-shrink-0" style="border-color: #e2e8f0 !important; z-index: 10;">
+                <div class="p-2 border rounded-4 bg-light d-flex align-items-center gap-2 shadow-xs" style="border-color: #e2e8f0 !important; background: #ffffff !important;">
+                    
+                    <button type="button" class="btn btn-icon btn-sm text-muted rounded-circle p-1.5" title="Insérer un émoticône">
+                        <img src="/static_base_icons?name=sentiment_satisfied&fill=%2364748b" style="width: 20px; height: 20px;">
+                    </button>
+
+                    <button type="button" class="btn btn-icon btn-sm text-muted rounded-circle p-1.5" title="Joindre un document">
+                        <img src="/static_base_icons?name=attach_file&fill=%2364748b" style="width: 20px; height: 20px;">
+                    </button>
+
+                    <input type="text" id="chatMessageInput" class="form-control border-0 bg-transparent px-2" 
+                           placeholder="Écrivez votre message... (Entrée pour envoyer)" 
+                           style="box-shadow: none; font-size: 0.9rem;" autocomplete="off">
+
+                    <button type="button" class="btn btn-primary rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5 shadow-xs" 
+                            id="chatSendBtn" style="background-color: #4f46e5; border-color: #4f46e5; font-size: 0.85rem;">
+                        <span>Envoyer</span>
+                        <img src="/static_base_icons?name=send&fill=white" style="width: 14px; height: 14px;">
+                    </button>
+                </div>
+                <div class="text-muted text-center mt-1" style="font-size: 0.68rem;">
+                    Appuyez sur <strong>Entrée</strong> pour envoyer &bull; <strong>Maj + Entrée</strong> pour saut de ligne
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL : NOUVEAU SALON OU DISCUSSION DIRECTE ── -->
+<div class="modal fade" id="newChatModal" tabindex="-1" aria-labelledby="newChatModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <div class="modal-header bg-white border-bottom p-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center text-white" 
+                         style="width: 32px; height: 32px; background: #4f46e5;">
+                        <img src="/static_base_icons?name=forum&fill=white" style="width: 18px; height: 18px;">
+                    </div>
+                    <h5 class="modal-title fw-bold text-dark fs-6 mb-0" id="newChatModalLabel">Nouvelle Discussion</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                <!-- Onglets de sélection -->
+                <ul class="nav nav-pills nav-fill mb-3 bg-light p-1 rounded-3" id="newChatTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-3 py-1.5 small fw-semibold" id="direct-tab" data-bs-toggle="pill" data-bs-target="#direct-pane" type="button" role="tab">
+                            Message Direct
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-3 py-1.5 small fw-semibold" id="group-tab" data-bs-toggle="pill" data-bs-target="#group-pane" type="button" role="tab">
+                            Créer un Salon d'Équipe
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Onglet 1 : Message Direct -->
+                    <div class="tab-pane fade show active" id="direct-pane" role="tabpanel">
+                        <div class="input-group input-group-sm rounded-3 bg-light border px-2 py-1 mb-3">
+                            <span class="input-group-text bg-transparent border-0 p-0 me-2 text-muted">
+                                <img src="/static_base_icons?name=search&fill=%2394a3b8" style="width: 15px; height: 15px;">
+                            </span>
+                            <input type="text" id="userModalSearchInput" class="form-control bg-transparent border-0 p-0 small" 
+                                   placeholder="Rechercher un collaborateur..." style="box-shadow: none;">
+                        </div>
+
+                        <div class="user-select-list overflow-y-auto" style="max-height: 260px;">
+                            {% if users and users|length > 0 %}
+                                {% for u in users %}
+                                <div class="user-select-row p-2.5 rounded-3 d-flex align-items-center justify-content-between cursor-pointer mb-1 border"
+                                     data-user-id="{{ u.user_id }}"
+                                     data-username="{{ u.username }}"
+                                     style="transition: background 0.15s ease; border-color: #f1f5f9 !important;">
+                                    <div class="d-flex align-items-center gap-2.5">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs" 
+                                             style="width: 36px; height: 36px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); font-size: 0.85rem;">
+                                            {{ u.username[0]|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold text-dark small">{{ u.first_name }} {{ u.last_name }} ({{ u.username }})</div>
+                                            <div class="text-muted" style="font-size: 0.72rem;">Collaborateur MELODI</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1" style="font-size: 0.72rem;">
+                                        Écrire
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4 text-muted small">Aucun autre utilisateur disponible</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Onglet 2 : Créer un Salon / Groupe -->
+                    <div class="tab-pane fade" id="group-pane" role="tabpanel">
+                        <form id="createGroupForm">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Nom du Salon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted border-end-0">#</span>
+                                    <input type="text" class="form-control" id="groupTitleInput" placeholder="ex: projet-nova, finances" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Description / Objectif (Optionnel)</label>
+                                <input type="text" class="form-control" id="groupDescInput" placeholder="ex: Canal d'échanges techniques">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Inviter des membres</label>
+                                <div class="border rounded-3 p-2 overflow-y-auto bg-light" style="max-height: 140px;">
+                                    {% for u in users %}
+                                    <div class="form-check d-flex align-items-center gap-2 mb-1.5">
+                                        <input class="form-check-input group-member-checkbox" type="checkbox" value="{{ u.user_id }}" id="cb_user_{{ u.user_id }}">
+                                        <label class="form-check-label small text-dark cursor-pointer" for="cb_user_{{ u.user_id }}">
+                                            {{ u.username }} ({{ u.first_name }} {{ u.last_name }})
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-primary rounded-pill px-4" style="background-color: #4f46e5; border-color: #4f46e5;">
+                                    Créer le Salon
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ── STYLES SPÉCIFIQUES MELODI CHAT ── */
+.melodi-chat-container {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.conversation-item:hover {
+    background-color: #f8fafc !important;
+}
+
+.active-conv {
+    background-color: #eef2ff !important;
+    border-left: 3px solid #4f46e5 !important;
+}
+
+.active-conv .conv-title {
+    color: #4338ca !important;
+    font-weight: 700 !important;
+}
+
+/* Bouton supprimer message au survol */
+.msg-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: transparent;
+    border-radius: 4px;
+    padding: 2px 4px !important;
+}
+
+.message-bubble:hover .msg-delete-btn {
+    opacity: 1;
+}
+
+.message-bubble {
+    transition: transform 0.1s ease;
+}
+
+/* Scrollbars modernes */
+.conversation-list::-webkit-scrollbar,
+.chat-messages-stream::-webkit-scrollbar {
+    width: 6px;
+}
+.conversation-list::-webkit-scrollbar-thumb,
+.chat-messages-stream::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+.conversation-list::-webkit-scrollbar-track,
+.chat-messages-stream::-webkit-scrollbar-track {
+    background: transparent;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let currentConversationId = {% if selected_conv %}{{ selected_conv.id }}{% else %}null{% endif %};
+    const currentUserId = {{ (current_user_id|tojson) if current_user_id else 'null' }};
+    const currentUserName = {{ (current_user_name|tojson) if current_user_name else '"Admin"' }};
+
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messagesStream = document.getElementById('chatMessagesStream');
+    const messageInput = document.getElementById('chatMessageInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const typingText = document.getElementById('typingText');
+    const deleteConvBtn = document.getElementById('deleteConversationBtn');
+
+    let typingTimeout = null;
+
+    function scrollToBottom() {
+        if (messagesStream) {
+            messagesStream.scrollTop = messagesStream.scrollHeight;
+        }
+    }
+    scrollToBottom();
+
+    // ── INITIALISATION WEBSOCKET MELODI CHAT ──
+    function setupWebSocket() {
+        if (!window.wsManager) {
+            console.warn('[Melodi Chat] WebSocketManager non disponible.');
+            return;
+        }
+
+        window.wsManager.on('connect', () => {
+            console.log('[Melodi Chat] Connecté au serveur temps réel.');
+            window.wsManager.subscribe('chat:all');
+            if (currentConversationId) {
+                window.wsManager.subscribe(`chat:${currentConversationId}`);
+            }
+        });
+
+        // 1. Réception de message
+        window.wsManager.on('chat_message', (payload) => {
+            console.log('[Melodi Chat] Message temps réel reçu :', payload);
+            if (!payload) return;
+
+            const msg = (payload.message && typeof payload.message === 'object') ? payload.message : payload;
+            if (!msg || !msg.conversation_id) return;
+
+            const text = typeof msg.message === 'string' ? msg.message : String(msg.message || '');
+
+            updateLeftSidebarSnippet(msg.conversation_id, text, msg.time_formatted);
+
+            if (msg.conversation_id === currentConversationId) {
+                const existing = document.querySelector(`.message-row[data-id="${msg.id}"]`);
+                if (!existing) {
+                    const pendingRows = Array.from(document.querySelectorAll('.message-row[data-id^="temp_"]'));
+                    const matchingRow = pendingRows.find(r => {
+                        const rowText = r.querySelector('.message-text')?.innerText || '';
+                        return rowText.trim() === text.trim();
+                    });
+
+                    if (matchingRow) {
+                        matchingRow.dataset.id = msg.id;
+                        const check = matchingRow.querySelector('.check-mark');
+                        if (check) check.innerHTML = '<span style="color: #93c5fd; font-weight: bold;">✓✓</span>';
+                        attachDeleteListener(matchingRow, msg.id);
+                    } else {
+                        appendMessageBubble({ ...msg, message: text });
+                        scrollToBottom();
+                    }
+                }
+            }
+        });
+
+        // 2. Suppression de message
+        window.wsManager.on('chat_message_deleted', (data) => {
+            if (!data || !data.message_id) return;
+            const targetRow = document.querySelector(`.message-row[data-id="${data.message_id}"]`);
+            if (targetRow) {
+                targetRow.style.transition = 'all 0.25s ease';
+                targetRow.style.opacity = '0';
+                targetRow.style.transform = 'scale(0.9)';
+                setTimeout(() => targetRow.remove(), 250);
+            }
+        });
+
+        // 3. Suppression de conversation
+        window.wsManager.on('chat_conversation_deleted', (data) => {
+            if (!data || !data.conversation_id) return;
+            const convEl = document.querySelector(`.conversation-item[data-id="${data.conversation_id}"]`);
+            if (convEl) convEl.remove();
+
+            if (currentConversationId === data.conversation_id) {
+                const firstRemaining = document.querySelector('.conversation-item');
+                if (firstRemaining) {
+                    selectConversation(firstRemaining);
+                } else {
+                    currentConversationId = null;
+                    document.getElementById('activeChatTitle').innerText = 'Aucune discussion';
+                    messagesContainer.innerHTML = '<div class="text-center py-5 text-muted small">Aucun salon ou message disponible</div>';
+                }
+            }
+        });
+
+        // 4. Création de nouvelle discussion / salon
+        window.wsManager.on('chat_conversation_created', (data) => {
+            if (!data || !data.conversation) return;
+            reloadConversations();
+        });
+
+        // 5. Frappe en direct
+        window.wsManager.on('chat_typing', (data) => {
+            if (!data) return;
+            const senderName = data.sender_name || data.user_name || 'Un collaborateur';
+            if (data.conversation_id === currentConversationId && senderName !== currentUserName) {
+                if (typingIndicator && typingText) {
+                    typingText.innerText = `${senderName} rédige un message...`;
+                    typingIndicator.classList.remove('d-none');
+                    scrollToBottom();
+                    if (typingTimeout) clearTimeout(typingTimeout);
+                    typingTimeout = setTimeout(() => {
+                        typingIndicator.classList.add('d-none');
+                    }, 2500);
+                }
+            }
+        });
+    }
+
+    setupWebSocket();
+
+    // Helper: update sidebar preview and move item to top
+    function updateLeftSidebarSnippet(convId, text, time) {
+        const convEl = document.querySelector(`.conversation-item[data-id="${convId}"]`);
+        if (convEl) {
+            const preview = convEl.querySelector('.preview-text');
+            const timeEl = convEl.querySelector('.conv-time');
+            if (preview) preview.innerText = text;
+            if (timeEl && time) timeEl.innerText = time;
+            convEl.parentElement.prepend(convEl);
+
+            if (convId !== currentConversationId) {
+                let badge = convEl.querySelector('.conv-unread-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge rounded-pill bg-primary conv-unread-badge ms-1';
+                    badge.style.fontSize = '0.65rem';
+                    badge.style.backgroundColor = '#4f46e5 !important';
+                    badge.innerText = '1';
+                    const timeParent = timeEl?.parentElement;
+                    if (timeParent) timeParent.appendChild(badge);
+                } else {
+                    const count = (parseInt(badge.innerText, 10) || 0) + 1;
+                    badge.innerText = count.toString();
+                }
+            }
+        } else {
+            reloadConversations();
+        }
+    }
+
+    async function reloadConversations() {
+        try {
+            const res = await fetch('/api/melodi_chat/conversations');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'success' && data.conversations) {
+                const convList = document.getElementById('conversationList');
+                data.conversations.forEach(conv => {
+                    if (!document.querySelector(`.conversation-item[data-id="${conv.id}"]`)) {
+                        const newEl = document.createElement('div');
+                        newEl.className = 'conversation-item p-3 border-bottom d-flex align-items-center gap-3 cursor-pointer';
+                        newEl.dataset.id = conv.id;
+                        newEl.dataset.code = conv.code;
+                        newEl.dataset.type = conv.type;
+                        newEl.dataset.title = conv.title;
+                        newEl.style.cssText = 'transition: all 0.15s ease; border-color: #f8fafc !important;';
+
+                        const avatarBlock = conv.type === 'channel'
+                            ? `<div class="rounded-3 d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                    style="width: 42px; height: 42px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; font-size: 1.1rem;">#</div>`
+                            : `<div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                    style="width: 42px; height: 42px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); font-size: 0.95rem;">${conv.title ? conv.title[0].toUpperCase() : 'C'}</div>
+                               <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle conv-status-dot" title="En ligne"></span>`;
+
+                        newEl.innerHTML = `
+                            <div class="position-relative">
+                                ${avatarBlock}
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="d-flex align-items-center justify-content-between mb-0.5">
+                                    <span class="fw-semibold text-dark text-truncate conv-title" style="font-size: 0.88rem;">${escapeHtml(conv.title)}</span>
+                                    <span class="text-muted conv-time" style="font-size: 0.7rem;">${conv.last_message_time || ''}</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="text-muted text-truncate conv-preview small" style="font-size: 0.78rem; max-width: 85%;">
+                                        <span class="preview-text">${escapeHtml(conv.last_message_text || 'Discussion démarrée')}</span>
+                                    </span>
+                                    <span class="badge rounded-pill bg-primary conv-unread-badge ms-1" style="font-size: 0.65rem; background-color: #4f46e5 !important;">Nouveau</span>
+                                </div>
+                            </div>
+                        `;
+                        convList.prepend(newEl);
+                    }
+                });
+                bindConversationItems();
+            }
+        } catch (e) {}
+    }
+
+    // Attach delete listener to message row
+    function attachDeleteListener(row, msgId) {
+        const btn = row.querySelector('.msg-delete-btn');
+        if (!btn) return;
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Supprimer définitivement ce message pour tout le monde ?')) return;
+
+            try {
+                const res = await fetch(`/api/melodi_chat/messages/${msgId}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) {
+                    console.error('[Chat] Erreur HTTP suppression message :', res.status);
+                    return;
+                }
+                const d = await res.json();
+                if (d.status === 'success') {
+                    row.style.transition = 'all 0.25s ease';
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.9)';
+                    setTimeout(() => row.remove(), 250);
+                }
+            } catch (err) {
+                console.error('[Chat] Erreur suppression message :', err);
+            }
+        };
+    }
+
+    document.querySelectorAll('.message-row').forEach(row => {
+        const msgId = row.dataset.id;
+        if (msgId && !msgId.startsWith('temp_')) {
+            attachDeleteListener(row, msgId);
+        }
+    });
+
+    // Append bubble to DOM with modern styling
+    function appendMessageBubble(msg) {
+        const isMe = (msg.sender_name === currentUserName || (msg.sender_id && msg.sender_id === currentUserId));
+        const row = document.createElement('div');
+        row.className = `d-flex ${isMe ? 'justify-content-end' : 'justify-content-start'} message-row`;
+        row.dataset.id = msg.id;
+
+        const checkMark = isMe ? (msg.status === 'pending' ? '<span style="color: rgba(255,255,255,0.6);">✓</span>' : '<span style="color: #93c5fd; font-weight: bold;">✓✓</span>') : '';
+        const senderHeader = !isMe ? `<div class="fw-bold mb-1 d-flex align-items-center gap-1.5" style="font-size: 0.78rem; color: #4f46e5;"><span>${escapeHtml(msg.sender_name)}</span></div>` : '';
+
+        const bubbleStyle = isMe 
+            ? 'background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: #ffffff; border-bottom-right-radius: 4px !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);'
+            : 'background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px !important;';
+
+        row.innerHTML = `
+            <div class="message-bubble p-3 rounded-4 shadow-xs position-relative" style="max-width: 72%; ${bubbleStyle}">
+                <button type="button" class="btn btn-sm text-danger p-0 border-0 msg-delete-btn" 
+                        title="Supprimer ce message" data-msg-id="${msg.id}">
+                    <img src="/static_base_icons?name=delete&fill=%23ef4444" style="width: 13px; height: 13px;">
+                </button>
+
+                ${senderHeader}
+                <div class="message-text" style="font-size: 0.9rem; line-height: 1.5; word-break: break-word; padding-right: 14px;">
+                    ${escapeHtml(msg.message)}
+                </div>
+                <div class="d-flex align-items-center justify-content-end gap-1 mt-1.5 ${isMe ? 'text-white-50' : 'text-muted'}" style="font-size: 0.68rem;">
+                    <span>${msg.time_formatted || ''}</span>
+                    <span class="check-mark">${checkMark}</span>
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(row);
+        if (msg.id && !String(msg.id).startsWith('temp_')) {
+            attachDeleteListener(row, msg.id);
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.innerText = text || '';
+        return div.innerHTML;
+    }
+
+    // Envoi de message
+    async function sendMessage() {
+        const text = (messageInput?.value || '').trim();
+        if (!text || !currentConversationId) return;
+
+        messageInput.value = '';
+
+        const tempId = 'temp_' + Date.now();
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        appendMessageBubble({
+            id: tempId,
+            conversation_id: currentConversationId,
+            sender_id: currentUserId,
+            sender_name: currentUserName,
+            message: text,
+            time_formatted: nowStr,
+            status: 'pending'
+        });
+        scrollToBottom();
+
+        updateLeftSidebarSnippet(currentConversationId, text, nowStr);
+
+        try {
+            const res = await fetch('/api/melodi_chat/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    conversation_id: currentConversationId,
+                    message: text
+                })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'success' && data.message) {
+                const bubble = document.querySelector(`.message-row[data-id="${tempId}"]`);
+                if (bubble) {
+                    bubble.dataset.id = data.message.id;
+                    const check = bubble.querySelector('.check-mark');
+                    if (check) check.innerHTML = '<span style="color: #93c5fd; font-weight: bold;">✓✓</span>';
+                    attachDeleteListener(bubble, data.message.id);
+                }
+            }
+        } catch (e) {
+            console.error('[Chat] Exception envoi :', e);
+        }
+    }
+
+    sendBtn?.addEventListener('click', sendMessage);
+    messageInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        } else {
+            triggerTyping();
+        }
+    });
+
+    let lastTypingTime = 0;
+    function triggerTyping() {
+        const now = Date.now();
+        if (now - lastTypingTime > 2000 && currentConversationId) {
+            lastTypingTime = now;
+            fetch('/api/melodi_chat/typing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversation_id: currentConversationId })
+            }).catch(() => {});
+        }
+    }
+
+    // Supprimer la discussion
+    deleteConvBtn?.addEventListener('click', async () => {
+        if (!currentConversationId) return;
+        if (!confirm('Êtes-vous sûr de vouloir supprimer définitivement cette discussion et tous ses messages ?')) return;
+
+        try {
+            const res = await fetch(`/api/melodi_chat/conversations/${currentConversationId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error('[Chat] Erreur HTTP suppression discussion :', res.status, errText);
+                alert('Erreur lors de la suppression de la discussion.');
+                return;
+            }
+            const data = await res.json();
+            if (data.status === 'success') {
+                const convEl = document.querySelector(`.conversation-item[data-id="${currentConversationId}"]`);
+                if (convEl) convEl.remove();
+
+                const nextConv = document.querySelector('.conversation-item');
+                if (nextConv) {
+                    selectConversation(nextConv);
+                } else {
+                    currentConversationId = null;
+                    document.getElementById('activeChatTitle').innerText = 'Aucune discussion';
+                    messagesContainer.innerHTML = '<div class="text-center py-5 text-muted small">Aucun salon ou message disponible</div>';
+                }
+            }
+        } catch (e) {
+            console.error('[Chat] Erreur suppression discussion :', e);
+        }
+    });
+
+    // Sélectionner une discussion
+    function selectConversation(item) {
+        const convId = parseInt(item.dataset.id);
+        if (convId === currentConversationId && messagesContainer.children.length > 0) return;
+
+        if (currentConversationId && window.wsManager) {
+            window.wsManager.unsubscribe(`chat:${currentConversationId}`);
+        }
+
+        document.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active-conv'));
+        item.classList.add('active-conv');
+
+        const unreadBadge = item.querySelector('.conv-unread-badge');
+        if (unreadBadge) unreadBadge.remove();
+
+        currentConversationId = convId;
+        const title = item.dataset.title;
+        const type = item.dataset.type;
+
+        document.getElementById('activeChatTitle').innerText = title;
+        const avatar = document.getElementById('activeChatAvatar');
+        if (type === 'channel') {
+            avatar.innerHTML = `<div class="rounded-3 d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                     style="width: 38px; height: 38px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; font-size: 1.1rem;">#</div>`;
+        } else {
+            avatar.innerHTML = `<div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                     style="width: 38px; height: 38px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">${title ? title[0].toUpperCase() : 'C'}</div>`;
+        }
+
+        if (window.wsManager) {
+            window.wsManager.subscribe(`chat:${convId}`);
+        }
+
+        messagesContainer.innerHTML = '<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2 text-primary"></span>Synchronisation des échanges...</div>';
+        fetch(`/api/melodi_chat/messages?conv_id=${convId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Erreur réseau (' + res.status + ')');
+                return res.json();
+            })
+            .then(data => {
+                messagesContainer.innerHTML = '';
+                if (data.status === 'success' && data.messages) {
+                    data.messages.forEach(m => appendMessageBubble(m));
+                    scrollToBottom();
+                }
+            })
+            .catch(e => {
+                messagesContainer.innerHTML = `<div class="alert alert-danger py-2 px-3 small">${e.message}</div>`;
+            });
+    }
+
+    function bindConversationItems() {
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            item.onclick = () => selectConversation(item);
+        });
+    }
+    bindConversationItems();
+
+    // Discussion directe
+    const userSelectRows = document.querySelectorAll('.user-select-row');
+    userSelectRows.forEach(row => {
+        row.addEventListener('click', async () => {
+            const targetUserId = row.dataset.userId;
+            const targetUsername = row.dataset.username;
+
+            const modalEl = document.getElementById('newChatModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+
+            try {
+                const res = await fetch('/api/melodi_chat/conversations/direct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target_user_id: targetUserId,
+                        target_username: targetUsername
+                    })
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.status === 'success' && data.conversation) {
+                    const conv = data.conversation;
+                    let convEl = document.querySelector(`.conversation-item[data-id="${conv.id}"]`);
+
+                    if (!convEl) {
+                        convEl = document.createElement('div');
+                        convEl.className = 'conversation-item p-3 border-bottom d-flex align-items-center gap-3 cursor-pointer';
+                        convEl.dataset.id = conv.id;
+                        convEl.dataset.code = conv.code;
+                        convEl.dataset.type = conv.type;
+                        convEl.dataset.title = targetUsername;
+                        convEl.style.cssText = 'transition: all 0.15s ease; border-color: #f8fafc !important;';
+
+                        convEl.innerHTML = `
+                            <div class="position-relative">
+                                <div class="avatar text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                     style="width: 42px; height: 42px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); font-size: 0.95rem;">
+                                    ${targetUsername[0].toUpperCase()}
+                                </div>
+                                <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle conv-status-dot" title="En ligne"></span>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="d-flex align-items-center justify-content-between mb-0.5">
+                                    <span class="fw-semibold text-dark text-truncate conv-title" style="font-size: 0.88rem;">${escapeHtml(targetUsername)}</span>
+                                    <span class="text-muted conv-time" style="font-size: 0.7rem;">${conv.last_message_time || ''}</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="text-muted text-truncate conv-preview small" style="font-size: 0.78rem; max-width: 85%;">
+                                        <span class="preview-text">${escapeHtml(conv.last_message_text || 'Discussion démarrée')}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                        const convList = document.getElementById('conversationList');
+                        convList.prepend(convEl);
+                        bindConversationItems();
+                    }
+
+                    selectConversation(convEl);
+                    messageInput?.focus();
+                }
+            } catch (err) {
+                console.error('[Chat] Erreur création conversation directe :', err);
+            }
+        });
+    });
+
+    // Créer un salon / groupe
+    const createGroupForm = document.getElementById('createGroupForm');
+    createGroupForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = (document.getElementById('groupTitleInput')?.value || '').trim();
+        const desc = (document.getElementById('groupDescInput')?.value || '').trim();
+        const selectedMemberIds = Array.from(document.querySelectorAll('.group-member-checkbox:checked')).map(cb => cb.value);
+
+        if (!title) return;
+
+        const modalEl = document.getElementById('newChatModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        try {
+            const res = await fetch('/api/melodi_chat/conversations/group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    description: desc,
+                    member_ids: selectedMemberIds
+                })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'success' && data.conversation) {
+                const conv = data.conversation;
+                let convEl = document.querySelector(`.conversation-item[data-id="${conv.id}"]`);
+
+                if (!convEl) {
+                    convEl = document.createElement('div');
+                    convEl.className = 'conversation-item p-3 border-bottom d-flex align-items-center gap-3 cursor-pointer';
+                    convEl.dataset.id = conv.id;
+                    convEl.dataset.code = conv.code;
+                    convEl.dataset.type = 'channel';
+                    convEl.dataset.title = conv.title;
+                    convEl.style.cssText = 'transition: all 0.15s ease; border-color: #f8fafc !important;';
+
+                    convEl.innerHTML = `
+                        <div class="position-relative">
+                            <div class="rounded-3 d-flex align-items-center justify-content-center fw-bold shadow-xs" 
+                                 style="width: 42px; height: 42px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; font-size: 1.1rem;">#</div>
+                        </div>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="d-flex align-items-center justify-content-between mb-0.5">
+                                <span class="fw-semibold text-dark text-truncate conv-title" style="font-size: 0.88rem;">${escapeHtml(conv.title)}</span>
+                                <span class="text-muted conv-time" style="font-size: 0.7rem;">${conv.last_message_time || ''}</span>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <span class="text-muted text-truncate conv-preview small" style="font-size: 0.78rem; max-width: 85%;">
+                                    <span class="preview-text">${escapeHtml(conv.last_message_text || 'Salon créé')}</span>
+                                </span>
+                                <span class="badge rounded-pill bg-primary conv-unread-badge ms-1" style="font-size: 0.65rem; background-color: #4f46e5 !important;">Nouveau</span>
+                            </div>
+                        </div>
+                    `;
+                    const convList = document.getElementById('conversationList');
+                    convList.prepend(convEl);
+                    bindConversationItems();
+                }
+
+                createGroupForm.reset();
+                selectConversation(convEl);
+                messageInput?.focus();
+            }
+        } catch (err) {
+            console.error('[Chat] Erreur création de groupe :', err);
+        }
+    });
+
+    // Recherche
+    const searchInput = document.getElementById('chatSearchInput');
+    searchInput?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            const title = (item.dataset.title || '').toLowerCase();
+            const preview = (item.querySelector('.preview-text')?.innerText || '').toLowerCase();
+            if (title.includes(query) || preview.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+
+    const userModalSearch = document.getElementById('userModalSearchInput');
+    userModalSearch?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        userSelectRows.forEach(row => {
+            const uname = (row.dataset.username || '').toLowerCase();
+            row.style.display = uname.includes(query) ? 'flex' : 'none';
+        });
+    });
+
+    // Filtres
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => {
+                b.classList.remove('btn-dark', 'active');
+                b.classList.add('btn-light', 'text-muted');
+            });
+            btn.classList.remove('btn-light', 'text-muted');
+            btn.classList.add('btn-dark', 'active');
+
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                const type = item.dataset.type;
+                if (filter === 'all' || type === filter) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+</script>
